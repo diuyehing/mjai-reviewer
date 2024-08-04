@@ -25,6 +25,7 @@ pub struct Log {
     pub game_length: GameLength,
     pub has_aka: bool,
     pub kyokus: Vec<Kyoku>,
+    pub player_count: u8,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -89,8 +90,9 @@ impl TryFrom<RawLog> for Log {
             logs, names, rule, ..
         } = raw_log;
 
+        let mut player_count = 4;
         if rule.disp.contains('三') || rule.disp.contains("3-Player") {
-            return Err(ParseError::NotFourPlayer);
+            player_count = 3;
         }
         let game_length = if rule.disp.contains('東') || rule.disp.contains("East") {
             GameLength::Tonpuu
@@ -99,8 +101,15 @@ impl TryFrom<RawLog> for Log {
         };
         let has_aka = rule.aka + rule.aka51 + rule.aka52 + rule.aka53 > 0;
 
+
+
         let mut kyokus = Vec::with_capacity(logs.len());
         for log in logs {
+            let mut array: [Tile; 13] = Default::default();
+            if log.haipai_3.len() == 13 {
+                array = log.haipai_3.try_into().unwrap();
+            }
+
             let mut kyoku = Kyoku {
                 meta: log.meta,
                 scoreboard: log.scoreboard,
@@ -123,7 +132,7 @@ impl TryFrom<RawLog> for Log {
                         discards: log.discards_2,
                     },
                     ActionTable {
-                        haipai: log.haipai_3,
+                        haipai: array,
                         takes: log.takes_3,
                         discards: log.discards_3,
                     },
@@ -178,6 +187,7 @@ impl TryFrom<RawLog> for Log {
             game_length,
             has_aka,
             kyokus,
+            player_count,
         })
     }
 }

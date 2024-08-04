@@ -66,7 +66,7 @@ pub fn tenhou_to_mjai(log: &Log) -> Result<Vec<Event>> {
     }];
 
     for kyoku in &log.kyokus {
-        let kyoku_events = tenhou_kyoku_to_mjai_events(kyoku)?;
+        let kyoku_events = tenhou_kyoku_to_mjai_events(kyoku, log.player_count)?;
         events.extend(kyoku_events);
     }
 
@@ -74,9 +74,9 @@ pub fn tenhou_to_mjai(log: &Log) -> Result<Vec<Event>> {
     Ok(events)
 }
 
-fn tenhou_kyoku_to_mjai_events(kyoku: &Kyoku) -> Result<Vec<Event>> {
+fn tenhou_kyoku_to_mjai_events(kyoku: &Kyoku, actor_count: u8) -> Result<Vec<Event>> {
     // First of all, transform all takes and discards to events.
-    let (take_events, discard_events): (Vec<_>, Vec<_>) = (0..4)
+    let (take_events, discard_events): (Vec<_>, Vec<_>) = (0..actor_count)
         .map(|a| {
             parse_takes_and_discards_to_mjai(
                 a,
@@ -120,7 +120,7 @@ fn tenhou_kyoku_to_mjai_events(kyoku: &Kyoku) -> Result<Vec<Event>> {
             tehais: array::from_fn(|i| kyoku.action_tables[i].haipai),
         });
 
-        let mut discard_sets: Vec<_> = (0..4)
+        let mut discard_sets: Vec<_> = (0..actor_count as usize)
             .map(|a| {
                 let mut m = AHashMap::new();
                 for discard in &discard_events[a] {
@@ -292,7 +292,7 @@ fn tenhou_kyoku_to_mjai_events(kyoku: &Kyoku) -> Result<Vec<Event>> {
             //
             // Here it simply checks if there is no more take for every single
             // actor.
-            if (0..4).all(|a| take_idxs[a] >= take_events[a].len()) {
+            if (0..actor_count as usize).all(|a| take_idxs[a] >= take_events[a].len()) {
                 end_kyoku(&mut events, kyoku);
                 break;
             }
@@ -318,6 +318,9 @@ fn tenhou_kyoku_to_mjai_events(kyoku: &Kyoku) -> Result<Vec<Event>> {
                     need_new_dora_at_discard = true;
                     continue;
                 }
+                Event::Pei { .. } => {
+                    continue;
+                }
                 _ => (),
             }
 
@@ -329,7 +332,7 @@ fn tenhou_kyoku_to_mjai_events(kyoku: &Kyoku) -> Result<Vec<Event>> {
             // There are some edge cases when there are multiple candidates for the
             // next actor, which will be handled by the second pass of the filter.
             last_actor = Some(actor as u8);
-            actor = (0..4)
+            actor = (0..actor_count as usize)
                 .filter(|&a| a != actor)
                 // First pass, filter the naki that takes the specific tile from the
                 // specific target.
@@ -415,7 +418,7 @@ fn tenhou_kyoku_to_mjai_events(kyoku: &Kyoku) -> Result<Vec<Event>> {
                         }
                     }
                 })
-                .unwrap_or((actor + 1) % 4);
+                .unwrap_or((actor + 1) % (actor_count as usize));
         }
 
         Ok(events)
@@ -716,6 +719,19 @@ fn discard_action_to_events(actor: u8, discards: &[ActionItem]) -> Result<Vec<Ev
                             tiles_from_tenhou_bytes(&naki[4..6])?,
                             pai,
                         ],
+                    };
+
+                    ret.push(ev);
+                } else if let Some(idx) = naki_string.find('f') {
+                    // pei
+
+                    if naki_string.len() != 3 || idx != 0 {
+                        return Err(ConvertError::InvalidNaki(naki_string.clone()));
+                    }
+
+                    let ev = Event::Pei {
+                        actor,
+                        pai: tiles_from_tenhou_bytes(&naki[1..3])?,
                     };
 
                     ret.push(ev);

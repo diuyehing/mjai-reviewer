@@ -67,6 +67,10 @@ pub enum Event {
         actor: u8,
         consumed: [Tile; 4],
     },
+    Pei {
+        actor: u8,
+        pai: Tile,
+    },
     Dora {
         dora_marker: Tile,
     },

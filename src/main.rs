@@ -307,7 +307,9 @@ fn main() -> Result<()> {
 
     // convert from tenhou::Log to Vec<mjai::Event>
     let begin_convert_log = chrono::Local::now();
-    log!("converting to mjai events...");
+
+    // log!("converting to mjai events...");
+
     let events =
         tenhou_to_mjai(&log).context("failed to convert tenhou.net/6 log into mjai format")?;
 
